@@ -71,6 +71,11 @@ jobs:
           # packages feed (it is openwrt-25.12), which is why earlier builds failed.
           cp feeds.conf.default feeds.conf
           ./scripts/feeds update packages
+          # Install the build deps into the SDK package tree. Without `feeds
+          # install`, `update` only fetches the index - libqmi/libmbim are not
+          # linked into package/feeds, so PKG_BUILD_DEPENDS can't build them and
+          # cmake fails with "Package 'qmi-glib' not found". uqmi = runtime CLI.
+          ./scripts/feeds install libqmi libmbim uqmi
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
           echo "CONFIG_LPAC_WITH_QMI=y" >> .config
