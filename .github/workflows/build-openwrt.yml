@@ -73,9 +73,10 @@ jobs:
           ./scripts/feeds update packages
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
+          echo "CONFIG_LPAC_WITH_QMI=y" >> .config
+          echo "CONFIG_LPAC_WITH_UQMI=y" >> .config
+          echo "CONFIG_LPAC_WITH_MBIM=y" >> .config
           echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config
-          echo "# CONFIG_LPAC_WITH_UQMI is not set" >> .config
-          echo "# CONFIG_LPAC_WITH_MBIM is not set" >> .config
           make defconfig
           make package/lpac/compile V=s -j$(nproc)
 
@@ -122,6 +123,9 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
           body: |
-            Patched lpac 2.3.x (source: fildunsky/lpac @ ${{ github.ref_name }}) built for OpenWrt ${{ env.OWRT_RELEASE }}.
+            Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt ${{ env.OWRT_RELEASE }}.
             Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
+            All modem APDU backends built in: AT, QMI (libqmi), uqmi, MBIM - the LuCI
+            app auto-selects per modem (AT for FM350, QMI/MBIM for Qualcomm SDX55 such
+            as Foxconn T99W175 / Thales MV31-W / Dell DW5930e).
             Install: `apk add --allow-untrusted <file>` (or opkg for ipk targets).

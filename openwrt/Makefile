@@ -12,7 +12,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lpac
-PKG_VERSION:=2.3.0_p1
+PKG_VERSION:=2.3.0_p2
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
@@ -35,6 +35,7 @@ define Package/lpac
   DEPENDS:= \
     +LPAC_WITH_PCSC:libpcsclite \
     +LPAC_WITH_PCSC:pcscd \
+    +LPAC_WITH_QMI:libqmi \
     +LPAC_WITH_MBIM:libmbim \
     +LPAC_WITH_UQMI:uqmi
   URL:=https://github.com/fildunsky/lpac
@@ -43,8 +44,10 @@ endef
 define Package/lpac/description
   lpac is a eUICC eSIM LPA manager written in C. This build tracks our patched
   fork (2.3.x + AT-driver robustness PRs #446/#447/#448, FM350 bare-CCHO #449,
-  and the LPAC_DRIVER_HOME loader fix) for reliable eSIM on USB modems like the
-  Fibocom FM350-GL via the native AT driver.
+  and the LPAC_DRIVER_HOME loader fix). It ships every modem APDU backend - AT
+  (Fibocom FM350-GL), QMI (libqmi) and uqmi plus MBIM (Qualcomm SDX55 modems
+  such as Foxconn T99W175 / Thales MV31-W / Dell DW5930e) - and the stdio bridge
+  for HTTP, so the LuCI app can pick the right transport per modem.
 endef
 
 define Package/lpac/config
@@ -60,6 +63,7 @@ TARGET_CFLAGS += $(FPIC)
 CMAKE_OPTIONS += \
   -DLPAC_WITH_APDU_PCSC=$(if $(CONFIG_LPAC_WITH_PCSC),ON,OFF) \
   -DLPAC_WITH_APDU_AT=$(if $(CONFIG_LPAC_WITH_AT),ON,OFF) \
+  -DLPAC_WITH_APDU_QMI=$(if $(CONFIG_LPAC_WITH_QMI),ON,OFF) \
   -DLPAC_WITH_APDU_UQMI=$(if $(CONFIG_LPAC_WITH_UQMI),ON,OFF) \
   -DLPAC_WITH_APDU_MBIM=$(if $(CONFIG_LPAC_WITH_MBIM),ON,OFF) \
   -DLPAC_WITH_APDU_QMI_QRTR=OFF \

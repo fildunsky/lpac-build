@@ -1,8 +1,13 @@
 #!/bin/sh
+#
+# Standalone lpac wrapper: reads /etc/config/lpac and exports the matching
+# LPAC_* env, then runs the real binary. The LuCI 5gmodem app does NOT use this
+# path - it sets LPAC_APDU* itself and calls /usr/lib/lpac/lpac directly - so
+# this is only for running `lpac` by hand from the shell.
 
 . /lib/config/uci.sh
 
-APDU_BACKEND="$(uci_get lpac global apdu_backend uqmi)"
+APDU_BACKEND="$(uci_get lpac global apdu_backend at)"
 APDU_DEBUG="$(uci_get lpac global apdu_debug 0)"
 
 HTTP_BACKEND="$(uci_get lpac global http_backend curl)"
@@ -18,17 +23,27 @@ if [ "$APDU_DEBUG" -eq 1 ]; then
     export LIBEUICC_DEBUG_APDU="1"
 fi
 
-if [ "$APDU_BACKEND" = "at" ]; then
-    AT_DEVICE="$(uci_get lpac at device /dev/ttyUSB2)"
-    AT_DEBUG="$(uci_get lpac at debug 0)"
-    export AT_DEVICE="$AT_DEVICE"
-    export AT_DEBUG="$AT_DEBUG"
-elif [ "$APDU_BACKEND" = "uqmi" ]; then
-    UQMI_DEV="$(uci_get lpac uqmi device /dev/cdc-wdm0)"
-    UQMI_DEBUG="$(uci_get lpac uqmi debug 0)"
-    export LPAC_QMI_DEV="$UQMI_DEV"
-    export LPAC_QMI_DEBUG="$UQMI_DEBUG"
-fi
+case "$APDU_BACKEND" in
+    at)
+        export LPAC_APDU_AT_DEVICE="$(uci_get lpac at device /dev/ttyUSB2)"
+        [ "$(uci_get lpac at debug 0)" -eq 1 ] && export LPAC_APDU_AT_DEBUG=1
+        ;;
+    qmi)
+        # libqmi backend - shares cdc-wdm with the data session via qmi-proxy.
+        export LPAC_APDU_QMI_DEVICE="$(uci_get lpac qmi device /dev/cdc-wdm0)"
+        export LPAC_APDU_QMI_UIM_SLOT="$(uci_get lpac qmi uim_slot 1)"
+        ;;
+    uqmi)
+        export LPAC_APDU_QMI_DEVICE="$(uci_get lpac uqmi device /dev/cdc-wdm0)"
+        export LPAC_APDU_QMI_UIM_SLOT="$(uci_get lpac uqmi uim_slot 1)"
+        ;;
+    mbim)
+        # libmbim backend - shares cdc-wdm with the data session via mbim-proxy.
+        export LPAC_APDU_MBIM_DEVICE="$(uci_get lpac mbim device /dev/cdc-wdm0)"
+        export LPAC_APDU_MBIM_UIM_SLOT="$(uci_get lpac mbim uim_slot 1)"
+        export LPAC_APDU_MBIM_USE_PROXY="$(uci_get lpac mbim use_proxy 1)"
+        ;;
+esac
 
 export LPAC_DRIVER_HOME=/usr/lib/lpac
 exec /usr/lib/lpac/lpac "$@"
