@@ -71,7 +71,6 @@ jobs:
           # packages feed (it is openwrt-25.12), which is why earlier builds failed.
           cp feeds.conf.default feeds.conf
           ./scripts/feeds update packages
-          ./scripts/feeds install -p packages libcurl
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
           echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config

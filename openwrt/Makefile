@@ -33,7 +33,6 @@ define Package/lpac
   CATEGORY:=Utilities
   TITLE:=eUICC eSIM LPA (2.3.x + FM350 patches)
   DEPENDS:= \
-    +libcurl \
     +LPAC_WITH_PCSC:libpcsclite \
     +LPAC_WITH_PCSC:pcscd \
     +LPAC_WITH_MBIM:libmbim \
@@ -64,7 +63,8 @@ CMAKE_OPTIONS += \
   -DLPAC_WITH_APDU_UQMI=$(if $(CONFIG_LPAC_WITH_UQMI),ON,OFF) \
   -DLPAC_WITH_APDU_MBIM=$(if $(CONFIG_LPAC_WITH_MBIM),ON,OFF) \
   -DLPAC_WITH_APDU_QMI_QRTR=OFF \
-  -DLPAC_WITH_APDU_GBINDER=OFF
+  -DLPAC_WITH_APDU_GBINDER=OFF \
+  -DLPAC_WITH_HTTP_CURL=OFF
 
 define Package/lpac/install
 	$(INSTALL_DIR) $(1)/usr/bin
