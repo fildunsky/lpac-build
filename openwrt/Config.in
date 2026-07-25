@@ -1,0 +1,29 @@
+menu "Configuration"
+	depends on PACKAGE_lpac
+
+config LPAC_WITH_PCSC
+	bool "Include APDU PCSC Backend support"
+	default n
+	help
+	  Compile LPAC with APDU PCSC Backend support (local smartcard readers).
+
+config LPAC_WITH_AT
+	bool "Include APDU AT Backend support"
+	default y
+	help
+	  Compile LPAC with the native AT APDU backend (recommended for USB modems
+	  such as the Fibocom FM350-GL).
+
+config LPAC_WITH_UQMI
+	bool "Include APDU uqmi Backend support"
+	default n
+	help
+	  Compile LPAC with APDU uqmi Backend support. Adds a uqmi dependency.
+
+config LPAC_WITH_MBIM
+	bool "Include APDU MBIM Backend support"
+	default n
+	help
+	  Compile LPAC with APDU MBIM Backend support. Adds a libmbim dependency.
+
+endmenu

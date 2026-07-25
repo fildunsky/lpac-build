@@ -1,0 +1,123 @@
+name: Build lpac for OpenWrt
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  OWRT_RELEASE: "25.12.5"
+
+jobs:
+  build:
+    name: ${{ matrix.target }}/${{ matrix.subtarget }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # aarch64 cortex-a53: MediaTek Filogic (WH3000 & new WiFi6 routers), Rockchip
+          - { target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-14.3.0_musl }
+          - { target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-14.3.0_musl }
+          # aarch64 cortex-a72: Raspberry Pi 4
+          - { target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-14.3.0_musl }
+          # aarch64 generic: VMs / containers / generic ARM64
+          - { target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-14.3.0_musl }
+          # armv7: generic ARM32
+          - { target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-14.3.0_musl_eabi }
+          # mipsel_24kc: cheap USB routers (Xiaomi, GL.iNet, Netgear)
+          - { target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-14.3.0_musl }
+          # mips_24kc: older MIPS routers with USB
+          - { target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-14.3.0_musl }
+          # x86_64: mini-PC / VM routers
+          - { target: x86,      subtarget: "64",    sdk: x86-64_gcc-14.3.0_musl }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential gawk gettext git \
+            libncurses-dev libssl-dev python3 unzip wget zstd file
+
+      - name: Download OpenWrt SDK
+        run: |
+          BASE="https://downloads.openwrt.org/releases/${OWRT_RELEASE}/targets"
+          URL="${BASE}/${{ matrix.target }}/${{ matrix.subtarget }}/openwrt-sdk-${OWRT_RELEASE}-${{ matrix.sdk }}.Linux-x86_64.tar.zst"
+          echo "Downloading $URL"
+          curl -fL --connect-timeout 30 --retry 3 -o /tmp/sdk.tar.zst "$URL"
+
+      - name: Extract SDK
+        run: |
+          mkdir -p /tmp/sdk
+          tar --zstd -xf /tmp/sdk.tar.zst -C /tmp/sdk --strip-components=1
+          rm /tmp/sdk.tar.zst
+
+      - name: Install lpac package definition into SDK
+        run: |
+          mkdir -p /tmp/sdk/package/lpac
+          cp -r openwrt/* /tmp/sdk/package/lpac/
+          echo "Package files:"
+          find /tmp/sdk/package/lpac -type f | sort
+
+      - name: Update feeds and compile lpac
+        run: |
+          cd /tmp/sdk
+          # Use the SDK's own feeds.conf.default (pinned to this release). Writing
+          # our own "^25.12.5" ref is wrong — that branch/tag does not exist in the
+          # packages feed (it is openwrt-25.12), which is why earlier builds failed.
+          cp feeds.conf.default feeds.conf
+          ./scripts/feeds update packages
+          ./scripts/feeds install -p packages libcurl
+          echo "CONFIG_PACKAGE_lpac=m" >> .config
+          echo "CONFIG_LPAC_WITH_AT=y" >> .config
+          echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config
+          echo "# CONFIG_LPAC_WITH_UQMI is not set" >> .config
+          echo "# CONFIG_LPAC_WITH_MBIM is not set" >> .config
+          make defconfig
+          make package/lpac/compile V=s -j$(nproc)
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          find /tmp/sdk/bin -name 'lpac*.apk' -exec cp {} artifacts/ \;
+          find /tmp/sdk/bin -name 'lpac*.ipk' -exec cp {} artifacts/ \;
+          echo "Built:"; ls -la artifacts/
+          test -n "$(ls -A artifacts/ 2>/dev/null)"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lpac-${{ matrix.target }}-${{ matrix.subtarget }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-24.04
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Flatten
+        run: |
+          mkdir -p release
+          find dist -type f \( -name '*.apk' -o -name '*.ipk' \) -exec cp {} release/ \;
+          ls -la release/
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          fail_on_unmatched_files: true
+          body: |
+            Patched lpac 2.3.x (source: fildunsky/lpac @ ${{ github.ref_name }}) built for OpenWrt ${{ env.OWRT_RELEASE }}.
+            Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
+            Install: `apk add --allow-untrusted <file>` (or opkg for ipk targets).
