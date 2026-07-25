@@ -82,10 +82,15 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p artifacts
-          find /tmp/sdk/bin -name 'lpac*.apk' -exec cp {} artifacts/ \;
-          find /tmp/sdk/bin -name 'lpac*.ipk' -exec cp {} artifacts/ \;
-          echo "Built:"; ls -la artifacts/
-          test -n "$(ls -A artifacts/ 2>/dev/null)"
+          # apk/ipk filename has no arch -> rename per-platform so Release files don't collide.
+          i=0
+          for f in $(find /tmp/sdk/bin -name 'lpac*.apk' -o -name 'lpac*.ipk'); do
+            ext="${f##*.}"
+            cp "$f" "artifacts/lpac-fm350-${{ matrix.target }}-${{ matrix.subtarget }}.${ext}"
+            i=$((i+1))
+          done
+          echo "Built ($i files):"; ls -la artifacts/
+          test "$i" -gt 0
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
