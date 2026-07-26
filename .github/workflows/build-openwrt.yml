@@ -170,9 +170,13 @@ jobs:
             Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt 25.12.5 (`.apk`)
             and 24.10.7 (`.ipk`).
             Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
-            APDU backends: AT + UQMI + stdio. AT covers Fibocom FM350-GL; UQMI covers
-            Qualcomm SDX55 (Foxconn T99W175 / Thales MV31-W / Dell DW5930e) in a QMI
-            composition (via the uqmi CLI). Native QMI/MBIM (libqmi/libmbim) are off -
-            glib2 does not cross-build in the OpenWrt SDK (host-lib leak); see README.
+
+            APDU backends:
+            - 25.12.5: **AT + QMI + UQMI + MBIM + stdio** (native libqmi/libmbim now build).
+            - 24.10.7: **AT + UQMI + MBIM + stdio** (native QMI off: 24.10 libqmi 1.34 < lpac's
+              qmi-glib >= 1.35.5; UQMI still covers SDX55, MBIM builds on both).
+
+            AT covers Fibocom FM350-GL; QMI/UQMI/MBIM cover Qualcomm SDX55 (Foxconn T99W175 /
+            Thales MV31-W / Dell DW5930e / Compal RXM-G1) in the matching composition.
             Install: 25.12.x `apk add --allow-untrusted <file>.apk`;
             24.10.x `opkg install <file>.ipk`.
