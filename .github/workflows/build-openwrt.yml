@@ -23,15 +23,16 @@ jobs:
           - { release: "25.12.5", target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-14.3.0_musl }
           - { release: "25.12.5", target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-14.3.0_musl }
           - { release: "25.12.5", target: x86,      subtarget: "64",    sdk: x86-64_gcc-14.3.0_musl }
-          # ---- OpenWrt 24.10.8 (opkg/ipk-based, gcc-13.3.0) ---------------------
-          - { release: "24.10.8", target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-13.3.0_musl_eabi }
-          - { release: "24.10.8", target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-13.3.0_musl }
-          - { release: "24.10.8", target: x86,      subtarget: "64",    sdk: x86-64_gcc-13.3.0_musl }
+          # ---- OpenWrt 24.10.7 (opkg/ipk-based, gcc-13.3.0) ---------------------
+          # .7, not the day-old .8: give the release servers time to settle.
+          - { release: "24.10.7", target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-13.3.0_musl_eabi }
+          - { release: "24.10.7", target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-13.3.0_musl }
+          - { release: "24.10.7", target: x86,      subtarget: "64",    sdk: x86-64_gcc-13.3.0_musl }
 
     steps:
       - name: Checkout
@@ -74,12 +75,19 @@ jobs:
           # Installing only 'uqmi' left those uninstalled, so glib2 linked the host
           # libz.a into the target (wrong arch) and failed.
           # 'feeds install -a' fixed glib2 but was too broad: it also pulled perl/
-          # uboot (host prereq checks fail on some targets -> rockchip broke) and, on
-          # 24.10, the feed's OWN lpac package (collided with ours -> defconfig glob
-          # error). Install ONLY what we need instead - feeds resolves each package's
-          # deps recursively, so libqmi/libmbim drag in glib2 + zlib/pcre2/libffi for
-          # the target, giving the same glib2 fix without the collateral packages.
+          # uboot (host prereq checks fail on some targets -> rockchip broke). Install
+          # ONLY what we need instead - feeds resolves each package's deps recursively,
+          # so libqmi/libmbim drag in glib2 + zlib/pcre2/libffi for the target, giving
+          # the same glib2 fix without the collateral packages.
           ./scripts/feeds update -a
+          # The 24.10 packages feed ships its OWN lpac; our patched build lives in
+          # package/lpac, and two packages named 'lpac' break defconfig with
+          # "glob failed: No files found .../lpac/Config.in". Drop every lpac the feeds
+          # provide (dir + any install symlink) and rebuild the feed index so ours is
+          # the only definition. 25.12 has no feed lpac, so this is a harmless no-op there.
+          find feeds -path '*/lpac' -prune -exec rm -rf {} + 2>/dev/null || true
+          rm -rf package/feeds/*/lpac 2>/dev/null || true
+          ./scripts/feeds update -i
           ./scripts/feeds install uqmi libqmi libmbim
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
@@ -94,7 +102,7 @@ jobs:
         run: |
           mkdir -p artifacts
           # Filenames carry no arch; tag with release+platform so nothing collides
-          # in the Release (25.12.5 -> .apk, 24.10.8 -> .ipk).
+          # in the Release (25.12.5 -> .apk, 24.10.7 -> .ipk).
           i=0
           for f in $(find /tmp/sdk/bin -name 'lpac*.apk' -o -name 'lpac*.ipk'); do
             ext="${f##*.}"
@@ -135,7 +143,7 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt 25.12.5 (`.apk`)
-            and 24.10.8 (`.ipk`).
+            and 24.10.7 (`.ipk`).
             Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
             APDU backends: AT + UQMI + stdio. AT covers Fibocom FM350-GL; UQMI covers
             Qualcomm SDX55 (Foxconn T99W175 / Thales MV31-W / Dell DW5930e) in a QMI
