@@ -83,7 +83,7 @@ jobs:
           # install`, `update` only fetches the index - libqmi/libmbim are not
           # linked into package/feeds, so PKG_BUILD_DEPENDS can't build them and
           # cmake fails with "Package 'qmi-glib' not found". uqmi = runtime CLI.
-          ./scripts/feeds install libqmi libmbim uqmi
+          ./scripts/feeds install libqmi libmbim uqmi glib2 zlib libpcre2 libffi
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
           echo "CONFIG_LPAC_WITH_QMI=y" >> .config
