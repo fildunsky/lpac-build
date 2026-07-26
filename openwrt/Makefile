@@ -12,7 +12,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lpac
-PKG_VERSION:=2.3.0_p4
+PKG_VERSION:=2.3.0_p5
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git

@@ -49,7 +49,7 @@ jobs:
           # его нет). Сносим эти хостовые -dev (рантайм-libs и zlib/gettext НЕ
           # трогаем - нужны хост-инструментам), тогда meson берёт staged-копии.
           sudo apt-get remove -y -qq libmount-dev libblkid-dev libpcre2-dev \
-            libpcre3-dev libffi-dev libselinux1-dev || true
+            libpcre3-dev libffi-dev libselinux1-dev zlib1g-dev || true
 
       - name: Download OpenWrt SDK
         run: |
