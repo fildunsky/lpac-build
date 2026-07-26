@@ -69,14 +69,18 @@ jobs:
           # Use the SDK's own feeds.conf.default (pinned to this release: openwrt-25.12
           # or openwrt-24.10). Writing our own ref would point at a non-existent branch.
           cp feeds.conf.default feeds.conf
-          # Install ALL feed packages. Native QMI/MBIM backends need libqmi/libmbim,
-          # which pull glib2; glib2 in turn needs its target deps (zlib/pcre2/ffi/...)
-          # BUILT for the target. Installing only 'uqmi' left those uninstalled, so
-          # glib2 linked the host libz.a into the target (wrong arch) and failed.
-          # 'feeds install -a' makes every dep buildable for the target - the same
-          # step a known-good community MBIM build used.
+          # Native QMI/MBIM backends need libqmi/libmbim, which pull glib2; glib2 in
+          # turn needs its target deps (zlib/pcre2/libffi/...) BUILT for the target.
+          # Installing only 'uqmi' left those uninstalled, so glib2 linked the host
+          # libz.a into the target (wrong arch) and failed.
+          # 'feeds install -a' fixed glib2 but was too broad: it also pulled perl/
+          # uboot (host prereq checks fail on some targets -> rockchip broke) and, on
+          # 24.10, the feed's OWN lpac package (collided with ours -> defconfig glob
+          # error). Install ONLY what we need instead - feeds resolves each package's
+          # deps recursively, so libqmi/libmbim drag in glib2 + zlib/pcre2/libffi for
+          # the target, giving the same glib2 fix without the collateral packages.
           ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          ./scripts/feeds install uqmi libqmi libmbim
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
           echo "CONFIG_LPAC_WITH_QMI=y" >> .config
