@@ -95,7 +95,21 @@ jobs:
           echo "CONFIG_LPAC_WITH_UQMI=y" >> .config
           echo "CONFIG_LPAC_WITH_MBIM=y" >> .config
           echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config
+          # libqmi ships three message "collections": minimal < basic < full. lpac's
+          # native QMI driver calls the UIM open/close-logical-channel messages, which
+          # exist ONLY in the FULL collection. defconfig otherwise picks basic, so the
+          # build reached driver/apdu/qmi_common.c and failed with a wall of "implicit
+          # declaration of qmi_message_uim_open_logical_channel_*". ('feeds install -a'
+          # masked this because it pulled modemmanager, which forces libqmi to full.)
+          # libmbim has no such split - it always builds the full message set.
+          echo "CONFIG_LIBQMI_COLLECTION_FULL=y" >> .config
+          echo "# CONFIG_LIBQMI_COLLECTION_BASIC is not set" >> .config
+          echo "# CONFIG_LIBQMI_COLLECTION_MINIMAL is not set" >> .config
           make defconfig
+          # Guard: fail loudly if defconfig did not settle on the full collection
+          # (otherwise the qmi_common.c wall of errors returns 15 minutes later).
+          grep -q '^CONFIG_LIBQMI_COLLECTION_FULL=y' .config || {
+            echo "ERROR: libqmi did not resolve to FULL collection"; grep LIBQMI_COLLECTION .config; exit 1; }
           make package/lpac/compile V=s -j$(nproc)
 
       - name: Collect artifacts
