@@ -75,12 +75,16 @@ jobs:
           # install`, `update` only fetches the index - libqmi/libmbim are not
           # linked into package/feeds, so PKG_BUILD_DEPENDS can't build them and
           # cmake fails with "Package 'qmi-glib' not found". uqmi = runtime CLI.
-          ./scripts/feeds install libqmi libmbim uqmi
+          # AT + UQMI сборка: без glib2. libqmi/libmbim НЕ ставим - их нативные
+          # бэкенды выключены (glib2 в CI ловит host-header leak). uqmi -
+          # рантаймовый CLI, покрывает Qualcomm SDX55 (T99W175/MV31-W) в
+          # QMI-композиции; AT покрывает FM350. libqmi/libmbim-glib добьём отдельно.
+          ./scripts/feeds install uqmi
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
-          echo "CONFIG_LPAC_WITH_QMI=y" >> .config
           echo "CONFIG_LPAC_WITH_UQMI=y" >> .config
-          echo "CONFIG_LPAC_WITH_MBIM=y" >> .config
+          echo "# CONFIG_LPAC_WITH_QMI is not set" >> .config
+          echo "# CONFIG_LPAC_WITH_MBIM is not set" >> .config
           echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config
           make defconfig
           make package/lpac/compile V=s -j$(nproc)

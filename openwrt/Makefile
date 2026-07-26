@@ -12,7 +12,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lpac
-PKG_VERSION:=2.3.0_p2
+PKG_VERSION:=2.3.0_p3
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
@@ -23,14 +23,13 @@ PKG_MIRROR_HASH:=skip
 PKG_MAINTAINER:=fildunsky
 PKG_LICENSE:=AGPL-3.0-only LGPL-2.0-only
 
-# Форсим стейджинг libqmi/libmbim ДО configure lpac: их бэкенды (qmi.c/mbim.c)
-# на этапе cmake ищут qmi-glib/mbim-glib через pkg-config, а .pc-файлы кладёт в
-# staging_dir именно сборка этих пакетов. Без PKG_BUILD_DEPENDS SDK-сборка падала
-# на "Package 'qmi-glib' not found" - deps по DEPENDS собираются, но staging их
-# заголовков/pc не гарантирован до нашего configure. uqmi - рантаймовый (CLI),
-# ему стейджинг не нужен. libqmi 1.36.0 и libmbim 1.32.0 в фидах 25.12 подходят
-# (нужно qmi-glib>=1.36.0, mbim-glib>=1.26.0).
-PKG_BUILD_DEPENDS:=libqmi libmbim
+# libqmi/libmbim нужны ТОЛЬКО нативным QMI/MBIM-бэкендам (qmi.c/mbim.c линкуют
+# qmi-glib/mbim-glib). Форсим их стейджинг ЛИШЬ когда соответствующий бэкенд
+# включён - иначе SDK впустую собирал бы glib2 (в CI он ловит host-header leak
+# "-I/usr/include" -> bits/libc-header-start.h) для сборки, где нативный QMI/MBIM
+# не нужен. UQMI-бэкенд вызывает uqmi CLI в рантайме, glib и стейджинга не требует,
+# поэтому AT+UQMI собирается без glib2 вовсе.
+PKG_BUILD_DEPENDS:=$(if $(CONFIG_LPAC_WITH_QMI),libqmi) $(if $(CONFIG_LPAC_WITH_MBIM),libmbim)
 
 CMAKE_INSTALL:=1
 
