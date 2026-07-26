@@ -69,14 +69,19 @@ jobs:
           # Use the SDK's own feeds.conf.default (pinned to this release: openwrt-25.12
           # or openwrt-24.10). Writing our own ref would point at a non-existent branch.
           cp feeds.conf.default feeds.conf
-          ./scripts/feeds update packages
-          # uqmi is a runtime CLI dep of the UQMI APDU backend; install its Makefile.
-          ./scripts/feeds install uqmi
+          # Install ALL feed packages. Native QMI/MBIM backends need libqmi/libmbim,
+          # which pull glib2; glib2 in turn needs its target deps (zlib/pcre2/ffi/...)
+          # BUILT for the target. Installing only 'uqmi' left those uninstalled, so
+          # glib2 linked the host libz.a into the target (wrong arch) and failed.
+          # 'feeds install -a' makes every dep buildable for the target - the same
+          # step a known-good community MBIM build used.
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
+          echo "CONFIG_LPAC_WITH_QMI=y" >> .config
           echo "CONFIG_LPAC_WITH_UQMI=y" >> .config
-          echo "# CONFIG_LPAC_WITH_QMI is not set" >> .config
-          echo "# CONFIG_LPAC_WITH_MBIM is not set" >> .config
+          echo "CONFIG_LPAC_WITH_MBIM=y" >> .config
           echo "# CONFIG_LPAC_WITH_PCSC is not set" >> .config
           make defconfig
           make package/lpac/compile V=s -j$(nproc)
