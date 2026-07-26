@@ -6,32 +6,32 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
-env:
-  OWRT_RELEASE: "25.12.5"
-
 jobs:
   build:
-    name: ${{ matrix.target }}/${{ matrix.subtarget }}
+    name: ${{ matrix.release }} ${{ matrix.target }}/${{ matrix.subtarget }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          # aarch64 cortex-a53: MediaTek Filogic (WH3000 & new WiFi6 routers), Rockchip
-          - { target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-14.3.0_musl }
-          - { target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-14.3.0_musl }
-          # aarch64 cortex-a72: Raspberry Pi 4
-          - { target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-14.3.0_musl }
-          # aarch64 generic: VMs / containers / generic ARM64
-          - { target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-14.3.0_musl }
-          # armv7: generic ARM32
-          - { target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-14.3.0_musl_eabi }
-          # mipsel_24kc: cheap USB routers (Xiaomi, GL.iNet, Netgear)
-          - { target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-14.3.0_musl }
-          # mips_24kc: older MIPS routers with USB
-          - { target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-14.3.0_musl }
-          # x86_64: mini-PC / VM routers
-          - { target: x86,      subtarget: "64",    sdk: x86-64_gcc-14.3.0_musl }
+          # ---- OpenWrt 25.12.5 (apk-based, gcc-14.3.0) --------------------------
+          - { release: "25.12.5", target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-14.3.0_musl_eabi }
+          - { release: "25.12.5", target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-14.3.0_musl }
+          - { release: "25.12.5", target: x86,      subtarget: "64",    sdk: x86-64_gcc-14.3.0_musl }
+          # ---- OpenWrt 24.10.8 (opkg/ipk-based, gcc-13.3.0) ---------------------
+          - { release: "24.10.8", target: mediatek, subtarget: filogic, sdk: mediatek-filogic_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: rockchip, subtarget: armv8,   sdk: rockchip-armv8_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: bcm27xx,  subtarget: bcm2711, sdk: bcm27xx-bcm2711_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: armsr,    subtarget: armv8,   sdk: armsr-armv8_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: armsr,    subtarget: armv7,   sdk: armsr-armv7_gcc-13.3.0_musl_eabi }
+          - { release: "24.10.8", target: ramips,   subtarget: mt7621,  sdk: ramips-mt7621_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: ath79,    subtarget: generic, sdk: ath79-generic_gcc-13.3.0_musl }
+          - { release: "24.10.8", target: x86,      subtarget: "64",    sdk: x86-64_gcc-13.3.0_musl }
 
     steps:
       - name: Checkout
@@ -45,8 +45,8 @@ jobs:
 
       - name: Download OpenWrt SDK
         run: |
-          BASE="https://downloads.openwrt.org/releases/${OWRT_RELEASE}/targets"
-          URL="${BASE}/${{ matrix.target }}/${{ matrix.subtarget }}/openwrt-sdk-${OWRT_RELEASE}-${{ matrix.sdk }}.Linux-x86_64.tar.zst"
+          BASE="https://downloads.openwrt.org/releases/${{ matrix.release }}/targets"
+          URL="${BASE}/${{ matrix.target }}/${{ matrix.subtarget }}/openwrt-sdk-${{ matrix.release }}-${{ matrix.sdk }}.Linux-x86_64.tar.zst"
           echo "Downloading $URL"
           curl -fL --connect-timeout 30 --retry 3 -o /tmp/sdk.tar.zst "$URL"
 
@@ -66,15 +66,11 @@ jobs:
       - name: Update feeds and compile lpac
         run: |
           cd /tmp/sdk
-          # Use the SDK's own feeds.conf.default (pinned to this release). Writing
-          # our own "^25.12.5" ref is wrong — that branch/tag does not exist in the
-          # packages feed (it is openwrt-25.12), which is why earlier builds failed.
+          # Use the SDK's own feeds.conf.default (pinned to this release: openwrt-25.12
+          # or openwrt-24.10). Writing our own ref would point at a non-existent branch.
           cp feeds.conf.default feeds.conf
           ./scripts/feeds update packages
-          # Install the build deps into the SDK package tree. Without `feeds
-          # install`, `update` only fetches the index - libqmi/libmbim are not
-          # linked into package/feeds, so PKG_BUILD_DEPENDS can't build them and
-          # cmake fails with "Package 'qmi-glib' not found". uqmi = runtime CLI.
+          # uqmi is a runtime CLI dep of the UQMI APDU backend; install its Makefile.
           ./scripts/feeds install uqmi
           echo "CONFIG_PACKAGE_lpac=m" >> .config
           echo "CONFIG_LPAC_WITH_AT=y" >> .config
@@ -88,11 +84,12 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p artifacts
-          # apk/ipk filename has no arch -> rename per-platform so Release files don't collide.
+          # Filenames carry no arch; tag with release+platform so nothing collides
+          # in the Release (25.12.5 -> .apk, 24.10.8 -> .ipk).
           i=0
           for f in $(find /tmp/sdk/bin -name 'lpac*.apk' -o -name 'lpac*.ipk'); do
             ext="${f##*.}"
-            cp "$f" "artifacts/lpac-fm350-${{ matrix.target }}-${{ matrix.subtarget }}.${ext}"
+            cp "$f" "artifacts/lpac-fm350-${{ matrix.release }}-${{ matrix.target }}-${{ matrix.subtarget }}.${ext}"
             i=$((i+1))
           done
           echo "Built ($i files):"; ls -la artifacts/
@@ -101,7 +98,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lpac-${{ matrix.target }}-${{ matrix.subtarget }}
+          name: lpac-${{ matrix.release }}-${{ matrix.target }}-${{ matrix.subtarget }}
           path: artifacts/*
           if-no-files-found: error
 
@@ -128,10 +125,12 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
           body: |
-            Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt ${{ env.OWRT_RELEASE }}.
+            Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt 25.12.5 (`.apk`)
+            and 24.10.8 (`.ipk`).
             Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
             APDU backends: AT + UQMI + stdio. AT covers Fibocom FM350-GL; UQMI covers
             Qualcomm SDX55 (Foxconn T99W175 / Thales MV31-W / Dell DW5930e) in a QMI
             composition (via the uqmi CLI). Native QMI/MBIM (libqmi/libmbim) are off -
             glib2 does not cross-build in the OpenWrt SDK (host-lib leak); see README.
-            Install: `apk add --allow-untrusted <file>` (or opkg for ipk targets).
+            Install: 25.12.x `apk add --allow-untrusted <file>.apk`;
+            24.10.x `opkg install <file>.ipk`.
