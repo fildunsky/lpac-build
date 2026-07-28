@@ -10,10 +10,15 @@
 APDU_BACKEND="$(uci_get lpac global apdu_backend at)"
 APDU_DEBUG="$(uci_get lpac global apdu_debug 0)"
 
-HTTP_BACKEND="$(uci_get lpac global http_backend curl)"
+# stdio, а не curl: этот пакет собран с -DLPAC_WITH_HTTP_CURL=OFF, драйвера
+# driver_http_curl.so в нём НЕТ, и запрос curl валит lpac с "No HTTP driver
+# found" ещё до APDU - снаружи это выглядит как "модем не отдаёт eUICC".
+HTTP_BACKEND="$(uci_get lpac global http_backend stdio)"
 HTTP_DEBUG="$(uci_get lpac global http_debug 0)"
 
-export LPAC_HTTP="$HTTP_BACKEND"
+# Заданный снаружи LPAC_HTTP уважаем: раньше обёртка экспортировала своё
+# значение поверх, и переопределить бэкенд для одного запуска было нельзя.
+[ -n "$LPAC_HTTP" ] || export LPAC_HTTP="$HTTP_BACKEND"
 if [ "$HTTP_DEBUG" -eq 1 ]; then
     export LIBEUICC_DEBUG_HTTP="1"
 fi

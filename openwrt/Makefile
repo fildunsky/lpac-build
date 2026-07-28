@@ -13,7 +13,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lpac
 PKG_VERSION:=2.3.0_p8
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/fildunsky/lpac.git
@@ -39,7 +39,7 @@ include $(INCLUDE_DIR)/cmake.mk
 define Package/lpac
   SECTION:=utils
   CATEGORY:=Utilities
-  TITLE:=eUICC eSIM LPA (2.3.x + FM350 patches)
+  TITLE:=eUICC eSIM LPA (patched 2.3.x for OpenWrt)
   DEPENDS:= \
     +LPAC_WITH_PCSC:libpcsclite \
     +LPAC_WITH_PCSC:pcscd \
@@ -51,11 +51,12 @@ endef
 
 define Package/lpac/description
   lpac is a eUICC eSIM LPA manager written in C. This build tracks our patched
-  fork (2.3.x + AT-driver robustness PRs #446/#447/#448, FM350 bare-CCHO #449,
-  and the LPAC_DRIVER_HOME loader fix). It ships every modem APDU backend - AT
-  (Fibocom FM350-GL), QMI (libqmi) and uqmi plus MBIM (Qualcomm SDX55 modems
-  such as Foxconn T99W175 / Thales MV31-W / Dell DW5930e) - and the stdio bridge
-  for HTTP, so the LuCI app can pick the right transport per modem.
+  fork (2.3.x + AT-driver robustness PRs #446/#447/#448, bare-CCHO #449 and the
+  LPAC_DRIVER_HOME loader fix). It is a general-purpose OpenWrt build, not a
+  single-modem one: it ships every modem APDU backend - AT, QMI (libqmi), uqmi
+  and MBIM - plus the stdio HTTP bridge, so the LuCI app can pick the right
+  transport per modem. Verified on Fibocom FM350-GL (AT) and Qualcomm SDX55
+  modules such as Foxconn T99W175 / Thales MV31-W / Dell DW5930e (MBIM/QMI).
 endef
 
 # Config INLINE (not `source "$(SOURCE)/Config.in"`): on the 24.10 SDK the build
@@ -103,6 +104,21 @@ define Package/lpac/config
 		  mbim-proxy). For modems running an MBIM composition.
 
 	endmenu
+endef
+
+# УСТАНОВКА ПОВЕРХ ОФИЦИАЛЬНОГО ПАКЕТА. Официальный lpac кладёт бинарь ФАЙЛОМ
+# /usr/lib/lpac, а нам нужен КАТАЛОГ (бинарь + dlopen-плагины). apk не заменяет
+# файл каталогом: он валится на каждом файле "failed to extract usr/lib/lpac/...:
+# Not a directory", успевает снести зависимости (pcscd/libpcsclite) и оставляет
+# пакет полудохлым - обёртка есть, бинаря нет. Пользователю это выглядело как
+# "eSIM не работает", а лечилось только ручным apk del + rm -rf.
+# Воспроизведено на стенде 28.07.2026. Снимаем файл ДО распаковки.
+define Package/lpac/preinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] || {
+	[ -f /usr/lib/lpac ] && rm -f /usr/lib/lpac
+}
+exit 0
 endef
 
 define Package/lpac/conffiles

@@ -131,7 +131,7 @@ jobs:
           i=0
           for f in $(find /tmp/sdk/bin -name 'lpac*.apk' -o -name 'lpac*.ipk'); do
             ext="${f##*.}"
-            cp "$f" "artifacts/lpac-fm350-${{ matrix.release }}-${{ matrix.target }}-${{ matrix.subtarget }}.${ext}"
+            cp "$f" "artifacts/lpac-${{ matrix.release }}-${{ matrix.target }}-${{ matrix.subtarget }}.${ext}"
             i=$((i+1))
           done
           echo "Built ($i files):"; ls -la artifacts/
@@ -169,7 +169,10 @@ jobs:
           body: |
             Patched lpac 2.3.x (source: fildunsky/lpac) built for OpenWrt 25.12.5 (`.apk`)
             and 24.10.7 (`.ipk`).
-            Native AT driver (PRs #446/#447/#448 + FM350 bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
+            Native AT driver (PRs #446/#447/#448 + bare-CCHO #449) + LPAC_DRIVER_HOME loader fix.
+
+            Assets are named `lpac-<openwrt>-<target>-<subtarget>.<ext>` (the old `lpac-fm350-*`
+            prefix is gone: this is a general-purpose build, not an FM350-only one).
 
             APDU backends:
             - 25.12.5: **AT + QMI + UQMI + MBIM + stdio** (native libqmi/libmbim now build).
